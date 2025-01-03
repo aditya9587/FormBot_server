@@ -60,28 +60,59 @@ export const login = async (req, res) => {
 
 export const updateUserDetails = async (req, res) => {
   try {
-    const { userName, email, password } = req.body;
-    if (!userName && !email && !password) {
-      return res.status(400).json({ message: "No fields to update" });
+    const { userName, email, oldPassword, newPassword } = req.body;
+
+    const validUser = await User.findById(req.user.userId);
+
+    if (!validUser) {
+      return res.status(400).json({ message: "User does not exist" });
     }
-    if (password) {
-      const verifyPassword = await bcrypt.compare(password, req.user.password);
+
+    const fieldsToUpdate = {};
+
+    if (userName) {
+      fieldsToUpdate.userName = userName;
+    }
+
+    if (email) {
+      fieldsToUpdate.email = email;
+    }
+
+    if (newPassword && oldPassword) {
+      if (oldPassword === newPassword) {
+        return res
+          .status(400)
+          .json({ message: "New password cannot be the same as old password" });
+      }
+
+      const verifyPassword = await bcrypt.compare(
+        oldPassword,
+        validUser.password
+      );
+
       if (!verifyPassword) {
         return res.status(400).json({ message: "Incorrect password" });
       }
-      const hashedPassword = await bcrypt.hash(password, 10);
-      password = hashedPassword;
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      fieldsToUpdate.password = hashedPassword;
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user.userId,
-      { userName, email, password },
-      { new: true }
-    );
-    return res
-      .status(200)
-      .json({ message: "User details updated successfully", user: updatedUser })
-      .select("-password");
+    if (Object.keys(fieldsToUpdate).length > 0) {
+      const updatedUser = await User.findByIdAndUpdate(
+        req.user.userId,
+        fieldsToUpdate,
+        { new: true }
+      );
+      return res
+        .status(200)
+        .json({
+          message: "User details updated successfully",
+          user: updatedUser,
+        });
+    } else {
+      return res.status(400).json({ message: "No fields to update" });
+    }
   } catch (error) {
     return res.status(500).json({ message: "Server error" });
   }

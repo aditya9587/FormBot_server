@@ -54,7 +54,6 @@ export const updateForm = async (req, res) => {
   try {
     const { formId } = req.params;
     const { formName , formSequence} = req.body;
-    console.log("formSequence",formSequence);
     if (!formId) {
       return res.status(400).json({ message: "Form ID is required" });
     }
